@@ -1,0 +1,124 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools",
+    "setuptools-scm",
+]
+
+[project]
+authors = [
+    {email = "arc.collaborations@ucl.ac.uk", name = "UCL ARC"},
+]
+classifiers = [
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
+dependencies = [
+    "jax",
+    "numpy",
+    "scipy",
+]
+description = "Bayesian calibration of simulations using Gaussian process emulation"
+dynamic = [
+    "version",
+]
+keywords = [
+]
+name = "calibr"
+optional-dependencies = {dev = [
+    "build",
+    "mypy",
+    "pre-commit",
+    "pytest",
+    "ruff",
+    "tox>=4",
+    "twine",
+]}
+readme = "README.md"
+requires-python = ">=3.10"
+license.file = "LICENSE.md"
+urls.homepage = "https://github.com/matt-graham/calibr"
+
+[tool.coverage]
+report = {skip_covered = true, sort = "cover"}
+run = {branch = true, parallel = true, source = [
+    "calibr",
+]}
+paths.source = [
+    "src",
+    ".tox*/*/lib/python*/site-packages",
+]
+
+[tool.mypy]
+explicit_package_bases = true
+
+[tool.pytest.ini_options]
+addopts = "--color=yes -v"
+testpaths = [
+    "tests",
+]
+
+[tool.ruff]
+fix = true
+force-exclude = true
+ignore = [
+    "COM812", # trailing commas (ruff-format recommended)
+    "D203", # no-blank-line-before-class
+    "D212", # multi-line-summary-first-line
+    "D407", # removed dashes lines under sections
+    "D417", # argument description in docstring (unreliable)
+    "ISC001", # simplify implicit str concatenation (ruff-format recommended)
+]
+per-file-ignores = {"tests*" = [
+    "INP001",
+    "S101",
+]}
+select = [
+    "ALL",
+]
+target-version = "py310"
+isort.known-first-party = [
+    "calibr",
+]
+mccabe.max-complexity = 18
+pep8-naming.classmethod-decorators = [
+    "classmethod",
+]
+
+[tool.setuptools_scm]
+local_scheme = "no-local-version"
+write_to = "src/calibr/_version.py"
+
+[tool.tomlsort]
+all = true
+spaces_indent_inline_array = 4
+trailing_comma_inline_array = true
+overrides."project.classifiers".inline_arrays = false
+overrides."tool.coverage.paths.source".inline_arrays = false
+
+[tool.tox]
+legacy_tox_ini = """
+    [gh-actions]
+    python =
+        3.10: py310
+        3.11: py311
+        3.12: py312
+
+    [testenv]
+    commands =
+        pytest --cov --cov-report=xml
+    deps =
+        pytest
+        pytest-cov
+
+    [tox]
+    env_list =
+        py310
+        py311
+        py312
+"""

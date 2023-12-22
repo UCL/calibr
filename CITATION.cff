@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: "Graham"
+    given-names: "Matt"
+    orcid: "https://orcid.org/0000-0001-9104-7960"
+    affiliation: University College London
+title: "calibr: Bayesian calibration of simulations using Gaussian process emulation"
+license: "MIT"
