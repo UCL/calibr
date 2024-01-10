@@ -89,6 +89,8 @@ mccabe.max-complexity = 18
 pep8-naming.classmethod-decorators = [
     "classmethod",
 ]
+pydocstyle.convention = "google"
+pylint.max-args = 10
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
