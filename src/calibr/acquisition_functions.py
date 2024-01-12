@@ -176,15 +176,19 @@ def get_expected_integrated_variance_acquisition_function(
         lookahead_variance_reduction_quadrature_inputs = jax.vmap(
             gp_lookahead_variance_reduction, (0, None)
         )(quadrature_inputs, new_inputs)
-        lookahead_variance_quadrature_inputs = (
-            variance_quadrature_inputs - lookahead_variance_reduction_quadrature_inputs
-        )
-        return jsp.special.logsumexp(
+        # We neglect the initial constant wrt θ* term in
+        # Lᵛₜ(θ*) = ∫ π²(θ) exp(2mₜ(θ) + s²ₜ(θ)) (exp(s²ₜ(θ)) - exp(τ²ₜ(θ; θ*))) dθ
+        # and use
+        # -log ∫ π²(θ) exp(2mₜ(θ) + s²ₜ(θ) + τ²ₜ(θ; θ*)) dθ
+        # corresponding to the negative logarithm of the negation of the second term
+        # in the expected integrated variance design criterion.
+        # This appears to give a more numerically stable objective function.
+        return -jsp.special.logsumexp(
             quadrature_log_weights
-            + 2 * mean_quadrature_inputs
-            + 2 * variance_quadrature_inputs
             - 2 * neg_log_prior_density_quadrature_inputs
-            + jnp.log1p(-jnp.exp(-lookahead_variance_quadrature_inputs))
+            + 2 * mean_quadrature_inputs
+            + variance_quadrature_inputs
+            + lookahead_variance_reduction_quadrature_inputs
         )
 
     return acquisition_function
