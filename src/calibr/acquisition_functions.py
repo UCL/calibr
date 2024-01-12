@@ -12,7 +12,7 @@ from jax.typing import ArrayLike
 def get_maximum_variance_greedy_batch_acquisition_functions(
     gp_mean_and_variance: Callable,
     gp_lookahead_variance_reduction: Callable,
-) -> tuple[Callable, Callable]:
+) -> Callable:
     """
     Construct acquisition functions for greedy maximisation of variance.
 
@@ -33,34 +33,36 @@ def get_maximum_variance_greedy_batch_acquisition_functions(
             process.
 
     Returns:
-        Tuple of functions, with first function the acquisition function to minimize
-        to select initial point in batch, and second function the acquisition function
-        to maximize (over first argument) for subsequent points, with already chosen
-        input points passed as the second argument.
+        The acquisition function to minimize to select new input point(s). The function
+        takes one or two arguments. If a single argument is passed it corresponds to
+        the acquisition function for the initial point in a batch. If two arguments are
+        passed, the first argument corresponds to the new input point being chosen and
+        the second argument to the already selected input point(s) in the batch.
     """
 
-    def initial_acquisition_function(new_input: ArrayLike) -> Array:
+    def acquisition_function(
+        new_input: ArrayLike, pending_inputs: ArrayLike | None = None
+    ) -> Array:
         mean, variance = gp_mean_and_variance(new_input)
-        return -2 * (mean + variance) - jnp.log1p(-jnp.exp(-variance))
-
-    def acquisition_function(new_input: ArrayLike, pending_inputs: ArrayLike) -> Array:
-        mean, variance = gp_mean_and_variance(new_input)
-        lookahead_variance_reduction = gp_lookahead_variance_reduction(
-            new_input, pending_inputs
-        )
+        if pending_inputs is None:
+            lookahead_variance_reduction = 0
+        else:
+            lookahead_variance_reduction = gp_lookahead_variance_reduction(
+                new_input, pending_inputs
+            )
         lookahead_variance = variance - lookahead_variance_reduction
         return -2 * (mean + variance) - jnp.log1p(-jnp.exp(-lookahead_variance))
 
-    return initial_acquisition_function, acquisition_function
+    return acquisition_function
 
 
 def get_maximum_interquantile_range_greedy_batch_acquisition_functions(
     gp_mean_and_variance: Callable,
     gp_lookahead_variance_reduction: Callable,
     quantile_interval: tuple[float, float] = (0.25, 0.75),
-) -> tuple[Callable, Callable]:
+) -> Callable:
     """
-    Construct acquisition functions for greedy maximisation of interquantile range.
+    Construct acquisition function for greedy maximisation of interquantile range.
 
     Selects next input points to evaluate target log-density at which maximise
     interquantile range of an unnormalized target density approximation based on a
@@ -82,37 +84,35 @@ def get_maximum_interquantile_range_greedy_batch_acquisition_functions(
             to optimize.
 
     Returns:
-        Tuple of functions, with first function the acquisition function to minimize
-        to select initial point in batch, and second function the acquisition function
-        to maximize (over first argument) for subsequent points, with already chosen
-        input points passed as the second argument.
+        The acquisition function to minimize to select new input point(s). The function
+        takes one or two arguments. If a single argument is passed it corresponds to
+        the acquisition function for the initial point in a batch. If two arguments are
+        passed, the first argument corresponds to the new input point being chosen and
+        the second argument to the already selected input point(s) in the batch.
     """
     lower = jsp.special.ndtri(quantile_interval[0])
     upper = jsp.special.ndtri(quantile_interval[1])
 
-    def initial_acquisition_function(new_input: ArrayLike) -> Array:
+    def acquisition_function(
+        new_input: ArrayLike, pending_inputs: ArrayLike | None = None
+    ) -> Array:
         mean, variance = gp_mean_and_variance(new_input)
-        standard_deviation = variance**0.5
+        if pending_inputs is None:
+            lookahead_variance_reduction = 0
+        else:
+            lookahead_variance_reduction = gp_lookahead_variance_reduction(
+                new_input, pending_inputs
+            )
+        lookahead_standard_deviation = (
+            abs(variance - lookahead_variance_reduction) ** 0.5
+        )
         return (
             -mean
-            - upper * standard_deviation
-            - jnp.log1p(-jnp.exp(standard_deviation * (lower - upper)))
+            - upper * lookahead_standard_deviation
+            - jnp.log1p(-jnp.exp(lookahead_standard_deviation * (lower - upper)))
         )
 
-    def acquisition_function(new_input: ArrayLike, pending_inputs: ArrayLike) -> Array:
-        mean, variance = gp_mean_and_variance(new_input)
-        standard_deviation = variance**0.5
-        lookahead_variance_reduction = gp_lookahead_variance_reduction(
-            new_input, pending_inputs
-        )
-        lookahead_variance = variance - lookahead_variance_reduction
-        return (
-            -mean
-            - upper * standard_deviation
-            - jnp.log1p(-jnp.exp(lookahead_variance * (lower - upper)))
-        )
-
-    return initial_acquisition_function, acquisition_function
+    return acquisition_function
 
 
 def get_expected_integrated_variance_acquisition_function(
