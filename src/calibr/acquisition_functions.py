@@ -244,8 +244,12 @@ def get_integrated_median_interquantile_range_acquisition_function(
             gp_lookahead_variance_reduction, (0, None)
         )(quadrature_inputs, new_inputs)
         lookahead_standard_deviation_quadrature_inputs = (
-            variance_quadrature_inputs - lookahead_variance_reduction_quadrature_inputs
-        ) ** 0.5
+            abs(
+                variance_quadrature_inputs
+                - lookahead_variance_reduction_quadrature_inputs
+            )
+            ** 0.5
+        )
         return jsp.special.logsumexp(
             quadrature_log_weights
             + mean_quadrature_inputs
