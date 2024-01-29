@@ -1,17 +1,25 @@
 """Acquisition functions for selecting new inputs points to evaluate model at."""
 
 from collections.abc import Callable
+from typing import TypeAlias
 
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
+from emul.types import (
+    PosteriorPredictiveLookaheadVarianceReduction,
+    PosteriorPredictiveMeanAndVariance,
+)
 from jax import Array
 from jax.typing import ArrayLike
 
+#: Type alias for acquisition functions which score a batch of inputs.
+AcquisitionFunction: TypeAlias = Callable[[ArrayLike], float]
+
 
 def get_maximum_variance_greedy_batch_acquisition_functions(
-    gp_mean_and_variance: Callable,
-    gp_lookahead_variance_reduction: Callable,
+    gp_mean_and_variance: PosteriorPredictiveMeanAndVariance,
+    gp_lookahead_variance_reduction: PosteriorPredictiveLookaheadVarianceReduction,
 ) -> Callable:
     """
     Construct acquisition functions for greedy maximisation of variance.
@@ -57,8 +65,8 @@ def get_maximum_variance_greedy_batch_acquisition_functions(
 
 
 def get_maximum_interquantile_range_greedy_batch_acquisition_functions(
-    gp_mean_and_variance: Callable,
-    gp_lookahead_variance_reduction: Callable,
+    gp_mean_and_variance: PosteriorPredictiveMeanAndVariance,
+    gp_lookahead_variance_reduction: PosteriorPredictiveLookaheadVarianceReduction,
     quantile_interval: tuple[float, float] = (0.25, 0.75),
 ) -> Callable:
     """
@@ -116,11 +124,11 @@ def get_maximum_interquantile_range_greedy_batch_acquisition_functions(
 
 
 def get_expected_integrated_variance_acquisition_function(
-    gp_mean_and_variance: Callable,
-    gp_lookahead_variance_reduction: Callable,
+    gp_mean_and_variance: PosteriorPredictiveMeanAndVariance,
+    gp_lookahead_variance_reduction: PosteriorPredictiveLookaheadVarianceReduction,
     quadrature_inputs: ArrayLike,
     quadrature_log_weights: ArrayLike,
-) -> Callable:
+) -> AcquisitionFunction:
     """
     Construct acquisition function for minimising expected integrated variance.
 
@@ -171,12 +179,12 @@ def get_expected_integrated_variance_acquisition_function(
 
 
 def get_integrated_median_interquantile_range_acquisition_function(
-    gp_mean_and_variance: Callable,
-    gp_lookahead_variance_reduction: Callable,
+    gp_mean_and_variance: PosteriorPredictiveMeanAndVariance,
+    gp_lookahead_variance_reduction: PosteriorPredictiveLookaheadVarianceReduction,
     quadrature_inputs: ArrayLike,
     quadrature_log_weights: ArrayLike,
     quantile_interval: tuple[float, float] = (0.25, 0.75),
-) -> Callable:
+) -> AcquisitionFunction:
     """
     Construct acquisition function for minimising integrated median interquantile range.
 
