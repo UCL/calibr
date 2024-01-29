@@ -19,6 +19,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "emul@git+https://github.com/UCL/emul",
     "jax",
     "numpy",
     "scipy",
