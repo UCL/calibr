@@ -132,8 +132,8 @@ def get_maximum_interquantile_range_greedy_batch_acquisition_functions(
 def get_expected_integrated_variance_acquisition_function(
     gp_mean_and_variance: PosteriorPredictiveMeanAndVariance,
     gp_lookahead_variance_reduction: PosteriorPredictiveLookaheadVarianceReduction,
-    quadrature_inputs: ArrayLike,
-    quadrature_log_weights: ArrayLike,
+    integration_inputs: ArrayLike,
+    integration_log_weights: ArrayLike,
 ) -> AcquisitionFunction:
     """
     Construct acquisition function for minimising expected integrated variance.
@@ -152,21 +152,21 @@ def get_expected_integrated_variance_acquisition_function(
             'pending' input points, when outputs associated with pending inputs are
             assumed to follow the posterior predictive distribution under the Gaussian
             process.
-        quadrature_inputs: Quadrature points to approximate integrals over input space.
-        quadrature_log_weights: Logarithm of weights associated with each of points
-            in `quadrature_inputs`.
+        integration_inputs: Points to use when approximating integrals over input space.
+        integration_log_weights: Logarithm of weights associated with each of points
+            in `integration_inputs`.
 
     Returns:
         The acquisition function to minimize to select new input point(s).
     """
-    mean_quadrature_inputs, variance_quadrature_inputs = jax.vmap(gp_mean_and_variance)(
-        quadrature_inputs
-    )
+    mean_integration_inputs, variance_integration_inputs = jax.vmap(
+        gp_mean_and_variance
+    )(integration_inputs)
 
     def acquisition_function(new_inputs: ArrayLike) -> Array:
-        lookahead_variance_reduction_quadrature_inputs = jax.vmap(
+        lookahead_variance_reduction_integration_inputs = jax.vmap(
             gp_lookahead_variance_reduction, (0, None)
-        )(quadrature_inputs, new_inputs)
+        )(integration_inputs, new_inputs)
         # We neglect the initial constant wrt θ* term in
         # Lᵛₜ(θ*) = ∫ exp(2mₜ(θ) + s²ₜ(θ)) (exp(s²ₜ(θ)) - exp(τ²ₜ(θ; θ*))) dθ
         # and use
@@ -175,10 +175,10 @@ def get_expected_integrated_variance_acquisition_function(
         # in the expected integrated variance design criterion.
         # This appears to give a more numerically stable objective function.
         return -jsp.special.logsumexp(
-            quadrature_log_weights
-            + 2 * mean_quadrature_inputs
-            + variance_quadrature_inputs
-            + lookahead_variance_reduction_quadrature_inputs
+            integration_log_weights
+            + 2 * mean_integration_inputs
+            + variance_integration_inputs
+            + lookahead_variance_reduction_integration_inputs
         )
 
     return acquisition_function
@@ -187,8 +187,8 @@ def get_expected_integrated_variance_acquisition_function(
 def get_integrated_median_interquantile_range_acquisition_function(
     gp_mean_and_variance: PosteriorPredictiveMeanAndVariance,
     gp_lookahead_variance_reduction: PosteriorPredictiveLookaheadVarianceReduction,
-    quadrature_inputs: ArrayLike,
-    quadrature_log_weights: ArrayLike,
+    integration_inputs: ArrayLike,
+    integration_log_weights: ArrayLike,
     quantile_interval: tuple[float, float] = (0.25, 0.75),
 ) -> AcquisitionFunction:
     """
@@ -208,9 +208,9 @@ def get_integrated_median_interquantile_range_acquisition_function(
             'pending' input points, when outputs associated with pending inputs are
             assumed to follow the posterior predictive distribution under the Gaussian
             process.
-        quadrature_inputs: Quadrature points to approximate integrals over input space.
-        quadrature_log_weights: Logarithm of weights associated with each of points
-            in `quadrature_inputs`.
+        integration_inputs: Points to use when approximate integrals over input space.
+        integration_log_weights: Logarithm of weights associated with each of points
+            in `integration_inputs`.
         quantile_interval: Lower and upper quantiles specifying inter-quantile range
             to optimize.
 
@@ -219,28 +219,28 @@ def get_integrated_median_interquantile_range_acquisition_function(
     """
     lower = jsp.special.ndtri(quantile_interval[0])
     upper = jsp.special.ndtri(quantile_interval[1])
-    mean_quadrature_inputs, variance_quadrature_inputs = jax.vmap(gp_mean_and_variance)(
-        quadrature_inputs
-    )
+    mean_integration_inputs, variance_integration_inputs = jax.vmap(
+        gp_mean_and_variance
+    )(integration_inputs)
 
     def acquisition_function(new_inputs: ArrayLike) -> Array:
-        lookahead_variance_reduction_quadrature_inputs = jax.vmap(
+        lookahead_variance_reduction_integration_inputs = jax.vmap(
             gp_lookahead_variance_reduction, (0, None)
-        )(quadrature_inputs, new_inputs)
-        lookahead_standard_deviation_quadrature_inputs = (
+        )(integration_inputs, new_inputs)
+        lookahead_standard_deviation_integration_inputs = (
             abs(
-                variance_quadrature_inputs
-                - lookahead_variance_reduction_quadrature_inputs
+                variance_integration_inputs
+                - lookahead_variance_reduction_integration_inputs
             )
             ** 0.5
         )
         return jsp.special.logsumexp(
-            quadrature_log_weights
-            + mean_quadrature_inputs
-            + upper * lookahead_standard_deviation_quadrature_inputs
+            integration_log_weights
+            + mean_integration_inputs
+            + upper * lookahead_standard_deviation_integration_inputs
             + jnp.log1p(
                 -jnp.exp(
-                    (lower - upper) * lookahead_standard_deviation_quadrature_inputs
+                    (lower - upper) * lookahead_standard_deviation_integration_inputs
                 )
             )
         )
