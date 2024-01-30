@@ -14,7 +14,13 @@ from jax import Array
 from jax.typing import ArrayLike
 
 #: Type alias for acquisition functions which score a batch of inputs.
-AcquisitionFunction: TypeAlias = Callable[[ArrayLike], float]
+AcquisitionFunction: TypeAlias = Callable[[ArrayLike], float | Array]
+
+#: Type alias for functions constructing acquisition function given Gaussian process
+AcquisitionFunctionFactory: TypeAlias = Callable[
+    [PosteriorPredictiveMeanAndVariance, PosteriorPredictiveLookaheadVarianceReduction],
+    AcquisitionFunction,
+]
 
 
 def get_maximum_variance_greedy_batch_acquisition_functions(
