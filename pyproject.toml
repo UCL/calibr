@@ -68,6 +68,8 @@ testpaths = [
 fix = true
 force-exclude = true
 ignore = [
+    "ANN003", # missing-type-kwargs
+    "ANN101", # missing-type-self
     "COM812", # trailing commas (ruff-format recommended)
     "D203", # no-blank-line-before-class
     "D212", # multi-line-summary-first-line
