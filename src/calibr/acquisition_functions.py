@@ -18,7 +18,12 @@ AcquisitionFunction: TypeAlias = Callable[[ArrayLike], float | Array]
 
 #: Type alias for functions constructing acquisition function given Gaussian process
 AcquisitionFunctionFactory: TypeAlias = Callable[
-    [PosteriorPredictiveMeanAndVariance, PosteriorPredictiveLookaheadVarianceReduction],
+    [
+        PosteriorPredictiveMeanAndVariance,
+        PosteriorPredictiveLookaheadVarianceReduction,
+        ArrayLike,
+        ArrayLike,
+    ],
     AcquisitionFunction,
 ]
 
