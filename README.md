@@ -24,7 +24,33 @@
 [license-badge]:            https://img.shields.io/badge/License-MIT-yellow.svg
 <!-- prettier-ignore-end -->
 
-Parallelised Bayesian calibration of simulations using Gaussian process emulation.
+Parallelized Bayesian calibration of simulations using Gaussian process emulation.
+
+`calibr` is a Python implementation of the algorithm described in _Parallel Gaussian
+process surrogate Bayesian inference with noisy likelihood evaluations_ (Järvenpää,
+Gutmann, Vehtari and Marttinen; 2021)
+([doi:10.1214/20-BA1200](https://doi.org/10.1214/20-BA1200),
+[arxiv:1905.01252](https://arxiv.org/abs/1905.01252)). It is designed to allow
+estimation of the posterior distribution on the unknown parameters of expensive to
+evaluate simulator models given observed data, using a batch sequential design strategy
+which iterates fitting a Gaussian process emulator to a set of evaluations of the
+(unnormalized) posterior density for the model and using the emulator to identify a new
+batch of model parameters at which to evaluate the posterior density which minimize a
+measure of the expected uncertainty in the emulation of the posterior density.
+
+The posterior density can be evaluated at the parameter values in each batch in
+parallel, providing the opportunity for speeding up calibration runs on multi-core and
+multi-node high performance computing systems. The acquisition functions used to choose
+new parameter values to evaluate are implemented using the high-performance numerical
+computing framework [JAX](https://jax.readthedocs.io/en/latest/), with the
+gradient-based optimization of these acquisition functions exploiting JAX's support for
+automatic differentiation.
+
+The package is still in the early stages of development, with only a subset of the
+algorithmic variants proposed by Järvenpää, Gutmann, Vehtari and Marttinen (2021)
+currently implemented. In particular there is no support yet for models with noisy
+likelihood evaluations or greedy strategies for optimizing the acquisition functions.
+Expect lots of rough edges!
 
 This project is developed in collaboration with the [Centre for Advanced Research Computing](https://ucl.ac.uk/arc), University College London.
 
