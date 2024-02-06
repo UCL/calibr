@@ -2,21 +2,84 @@
 
 from collections.abc import Callable
 from heapq import heappush
+from typing import Protocol, TypeAlias
 
 import jax
-from scipy.optimize import minimize
+from jax.typing import ArrayLike
+from numpy import ndarray
+from numpy.random import Generator
+from scipy.optimize import basinhopping as _basin_hopping
+from scipy.optimize import minimize as _minimize
 
 
 class ConvergenceError(Exception):
     """Error raised when optimizer fails to converge within given computation budget."""
 
 
+#: Type alias for scalar-valued objective function of array argument
+ObjectiveFunction: TypeAlias = Callable[[ArrayLike], float]
+
+#: Type alias for function sampling initial optimization state given random generator
+InitialStateSampler: TypeAlias = Callable[[Generator], ndarray]
+
+
+class GlobalMinimizer(Protocol):
+    """Function which attempts to find global minimum of a scalar objective function."""
+
+    def __call__(
+        self,
+        objective_function: ObjectiveFunction,
+        sample_initial_state: InitialStateSampler,
+        rng: Generator,
+    ) -> tuple[jax.Array, float]:
+        """
+        Minimize a differentiable objective function.
+
+        Args:
+            objective_function: Differentiable scalar-valued function of a single flat
+                vector argument to be minimized. Assumed to be specified using JAX
+                primitives such that its gradient and Hessian can be computed using
+                JAX's automatic differentiation support, and to be suitable for
+                just-in-time compilation.
+            sample_initial_state: Callable with one argument, which when passed a NumPy
+                random number generator returns a random initial state for optimization
+                of appropriate dimension.
+            rng: Seeded NumPy random number generator.
+
+        Returns:
+            Tuple with first entry the state corresponding to the minima point and the
+            second entry the corresponding objective function value.
+        """
+
+
+def _hessian_vector_product(
+    scalar_function: ObjectiveFunction,
+) -> Callable[[ArrayLike, ArrayLike], jax.Array]:
+    """
+    Construct function to compute Hessian-vector product for scalar-valued function.
+
+    Args:
+        scalar_function: Scalar-valued objective function.
+
+    Returns:
+        Hessian-vector product function.
+    """
+
+    def hvp(x: ArrayLike, v: ArrayLike) -> jax.Array:
+        return jax.jvp(jax.grad(scalar_function), (x,), (v,))[1]
+
+    return hvp
+
+
 def minimize_with_restarts(
-    objective_function: Callable[[jax.Array], jax.Array],
-    sample_initial_state: Callable[[], jax.Array],
+    objective_function: ObjectiveFunction,
+    sample_initial_state: InitialStateSampler,
+    rng: Generator,
+    *,
     number_minima_to_find: int = 5,
     maximum_minimize_calls: int = 100,
     minimize_method: str = "Newton-CG",
+    minimize_max_iterations: int | None = None,
     logging_function: Callable[[str], None] = lambda _: None,
 ) -> tuple[jax.Array, float]:
     """Minimize a differentiable objective function with random restarts.
@@ -34,16 +97,20 @@ def minimize_with_restarts(
             primitives such that its gradient and Hessian can be computed using JAX's
             automatic differentiation support, and to be suitable for just-in-time
             compilation.
-        sample_initial_state: Callable with zero arguments, which when called returns
-            a random initial state for optimization of appropriate dimension.
+        sample_initial_state: Callable with one argument, which when passed a NumPy
+            random number generator returns a random initial state for optimization of
+            appropriate dimension.
+        rng: Seeded NumPy random number generator.
         number_minima_to_find: Number of candidate minima of objective function to try
             to find.
         maximum_minimize_calls: Maximum number of times to try calling
             `scipy.optimize.minimize` to find candidate minima. If insufficient
             candidates are found within this number of calls then a `ConvergenceError`
             exception is raised.
-        minimize_method: String specifying one of optimization methods which can be
-            passed to `method` argument of `scipy.optimize.minimize`.
+        minimize_method: String specifying one of local optimization methods which can
+            be passed to `method` argument of `scipy.optimize.minimize`.
+        minimize_max_iterations: Maximum number of iterations in inner local
+            minimization.
         logging_function: Function to use to optionally log status messages during
             minimization. Defaults to a no-op function which discards messages.
 
@@ -58,12 +125,13 @@ def minimize_with_restarts(
         and minimize_calls < maximum_minimize_calls
     ):
         logging_function(f"Starting minimize call {minimize_calls + 1}")
-        results = minimize(
+        results = _minimize(
             jax.jit(objective_function),
-            x0=sample_initial_state(),
+            x0=sample_initial_state(rng),
             jac=jax.jit(jax.grad(objective_function)),
-            hess=jax.jit(jax.hessian(objective_function)),
+            hessp=jax.jit(_hessian_vector_product(objective_function)),
             method=minimize_method,
+            options={"maxiter": minimize_max_iterations},
         )
         minimize_calls += 1
         if results.success:
@@ -87,3 +155,55 @@ def minimize_with_restarts(
     ) = minima_found[0]
     logging_function(f"Best minima found has value {min_objective_function}")
     return state, float(min_objective_function)
+
+
+def basin_hopping(
+    objective_function: ObjectiveFunction,
+    sample_initial_state: InitialStateSampler,
+    rng: Generator,
+    *,
+    num_iterations: int = 5,
+    minimize_method: str = "Newton-CG",
+    minimize_max_iterations: int | None = None,
+) -> tuple[jax.Array, float]:
+    """Minimize a differentiable objective function with SciPy basin-hopping algorithm.
+
+    The basin-hopping algorithm nests an inner local minimization using the
+    `scipy.optimize.minimize` method within an outer global stepping algorithm which
+    perturbs the current state with a random displacement and accepts or rejects this
+    proposal using a Metropolis criterion.
+
+    Args:
+        objective_function: Differentiable scalar-valued function of a single flat
+            vector argument to be minimized. Assumed to be specified using JAX
+            primitives such that its gradient and Hessian can be computed using JAX's
+            automatic differentiation support, and to be suitable for just-in-time
+            compilation.
+        sample_initial_state: Callable with one argument, which when passed a NumPy
+            random number generator returns a random initial state for optimization of
+            appropriate dimension.
+        rng: Seeded NumPy random number generator.
+        num_iterations: Number of basin-hopping iterations, with number of inner
+            `scipy.optimize.minimize` calls being `num_iterations + 1`.
+        minimize_method: String specifying one of local optimization methods which can
+            be passed to `method` argument of `scipy.optimize.minimize`.
+        minimize_max_iterations: Maximum number of iterations in inner local
+            minimization.
+
+    Returns:
+        Tuple with first entry the state corresponding to the best minima candidate
+        found and the second entry the corresponding objective function value.
+    """
+    results = _basin_hopping(
+        jax.jit(objective_function),
+        x0=sample_initial_state(rng),
+        niter=num_iterations,
+        minimizer_kwargs={
+            "method": minimize_method,
+            "jac": jax.jit(jax.grad(objective_function)),
+            "hessp": jax.jit(_hessian_vector_product(objective_function)),
+            "options": {"maxiter": minimize_max_iterations},
+        },
+        seed=rng,
+    )
+    return results.x, float(results.fun)

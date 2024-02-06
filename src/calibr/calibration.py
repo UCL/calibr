@@ -5,7 +5,8 @@ from typing import TypeAlias
 
 import numpy as np
 from emul.types import DataDict, ParametersDict, PosteriorPredictiveMeanAndVariance
-from jax.typing import Array, ArrayLike
+from jax import Array
+from jax.typing import ArrayLike
 from numpy.random import Generator
 
 from .acquisition_functions import (
@@ -19,7 +20,7 @@ from .emulation import (
     GaussianProcessParameterFitter,
     fit_gaussian_process_parameters_map,
 )
-from .optimization import minimize_with_restarts
+from .optimization import GlobalMinimizer, minimize_with_restarts
 
 #: Type alias for function generating random initial values for inputs.
 InitialInputSampler: TypeAlias = Callable[[Generator, int], Array]
@@ -35,12 +36,14 @@ def get_next_inputs_batch_by_joint_optimization(
     acquisition_function: AcquisitionFunction,
     sample_initial_inputs: InitialInputSampler,
     batch_size: int,
-    **minimize_with_restart_kwargs,
+    *,
+    minimize_function: GlobalMinimizer = minimize_with_restarts,
+    **minimize_function_kwargs,
 ) -> tuple[Array, float]:
     """
     Get next batch of inputs to evaluate by jointly optimizing acquisition function.
 
-    Optimizes acquisition function over product of `batch_size` input spaces.
+    Minimizes acquisition function over product of `batch_size` input spaces.
 
     Args:
         rng: NumPy random number generator for initializing optimization runs.
@@ -50,8 +53,10 @@ def get_next_inputs_batch_by_joint_optimization(
             batch of inputs when passed a random number generator and batch size. Used
             to initialize state for optimization runs.
         batch_size: Number of inputs in batch.
-        **minimize_with_restart_kwargs: Any keyword arguments to pass to
-            `minimize_with_restart` function used to optimize acquisition function.
+        minimize_function: Function used to attempt to find global minimum of
+            acquisition function.
+        **minimize_function_kwargs: Any keyword arguments to pass to
+            `minimize_function` function used to optimize acquisition function.
 
     Returns:
         Tuple of optimized inputs batch and corresponding value of acquisition function.
@@ -60,14 +65,16 @@ def get_next_inputs_batch_by_joint_optimization(
     def acquisition_function_flat_input(flat_inputs: ArrayLike) -> float:
         return acquisition_function(flat_inputs.reshape((batch_size, -1)))
 
-    minimize_with_restart_kwargs.setdefault("number_minima_to_find", 5)
-    minimize_with_restart_kwargs.setdefault("maximum_minimize_calls", 100)
-    minimize_with_restart_kwargs.setdefault("minimize_method", "Newton-CG")
+    if minimize_function is minimize_with_restarts:
+        minimize_function_kwargs.setdefault("number_minima_to_find", 5)
+        minimize_function_kwargs.setdefault("maximum_minimize_calls", 100)
+        minimize_function_kwargs.setdefault("minimize_method", "Newton-CG")
 
-    flat_inputs, min_acquisition_function = minimize_with_restarts(
+    flat_inputs, min_acquisition_function = minimize_function(
         objective_function=acquisition_function_flat_input,
-        sample_initial_state=lambda: sample_initial_inputs(rng, batch_size).flatten(),
-        **minimize_with_restart_kwargs,
+        sample_initial_state=lambda r: sample_initial_inputs(r, batch_size).flatten(),
+        rng=rng,
+        **minimize_function_kwargs,
     )
 
     return flat_inputs.reshape((batch_size, -1)), min_acquisition_function

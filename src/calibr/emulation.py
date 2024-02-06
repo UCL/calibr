@@ -13,10 +13,11 @@ from emul.types import (
     ParametersDict,
     PosteriorPredictiveFunctionFactory,
 )
-from jax.typing import Array, ArrayLike
+from jax import Array
+from jax.typing import ArrayLike
 from numpy.random import Generator
 
-from .optimization import minimize_with_restarts
+from .optimization import GlobalMinimizer, minimize_with_restarts
 
 try:
     import mici
@@ -114,22 +115,39 @@ def fit_gaussian_process_parameters_map(
     rng: Generator,
     gaussian_process: GaussianProcessModel,
     *,
-    number_minima_to_find: int = 1,
-    maximum_minimize_calls: int = 100,
-    minimize_method: str = "Newton-CG",
+    minimize_function: GlobalMinimizer = minimize_with_restarts,
+    **minimize_function_kwargs,
 ) -> ParametersDict:
-    """Fit paramaters of Gaussian process model by maximimizing posterior density."""
-    unconstrained_parameters, _ = minimize_with_restarts(
+    """Fit parameters of Gaussian process model by maximimizing posterior density.
+
+    Finds maximum-a-posterior (MAP) estimate of Gaussian process parameters by
+    minimizing negative logarithm of posterior density on parameters given data.
+
+    Args:
+        rng: Seeded NumPy random number generator.
+        gaussian_process: Tuple of functions for Gaussian process model to fit.
+        minimize_function: Function used to attempt to find global minimum of negative
+            log posterior density function.
+        **minimize_function_kwargs: Any keyword arguments to pass to
+            `minimize_function` function used to optimize negative posterior log density
+            function.
+
+    Returns:
+        Dictionary of parameters corresponding to maximum-a-posteriori estimate.
+    """
+    if minimize_function is minimize_with_restarts:
+        minimize_function_kwargs.setdefault("number_minima_to_find", 1)
+        minimize_function_kwargs.setdefault("maximum_minimize_calls", 100)
+        minimize_function_kwargs.setdefault("minimize_method", "Newton-CG")
+    unconstrained_parameters, _ = minimize_function(
         objective_function=gaussian_process.neg_log_marginal_posterior,
-        sample_initial_state=lambda: gaussian_process.sample_unconstrained_parameters(
-            rng,
+        sample_initial_state=lambda r: gaussian_process.sample_unconstrained_parameters(
+            r,
             None,
         ),
-        number_minima_to_find=number_minima_to_find,
-        maximum_minimize_calls=maximum_minimize_calls,
-        minimize_method=minimize_method,
+        rng=rng,
+        **minimize_function_kwargs,
     )
-
     return gaussian_process.transform_parameters(unconstrained_parameters)
 
 
@@ -149,6 +167,21 @@ if MICI_IMPORTED:
 
         Uses Hamiltonian Monte Carlo (HMC) to generate chain(s) of samples approximating
         posterior distribution on Gaussian process parameters given data.
+
+        Args:
+            rng: Seeded NumPy random number generator.
+            gaussian_process: Tuple of functions for Gaussian process model to fit.
+            n_chain: Number of Markov chains to simulate.
+            n_warm_up_iter: Number of adaptive warm-up iterations to run for each chain.
+            n_main_iter: Number of main sampling stage iterations to run for each chain.
+            r_hat_threshold: If not `None`, specifies a maximum value for the
+                (rank-normalized, split) R-hat convergence diagnostic computed from the
+                chains, with R-hat values exceeding this threshold leading to an
+                exception being raised. Requires `n_chain > 1` and for ArviZ package to
+                be installed.
+
+        Returns:
+            Dictionary of parameters corresponding to approximate posterior sample.
         """
         if r_hat_threshold is not None and not ARVIZ_IMPORTED:
             msg = "R-hat convergence checks require ArviZ to be installed"
