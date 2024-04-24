@@ -80,6 +80,7 @@ def minimize_with_restarts(
     maximum_minimize_calls: int = 100,
     minimize_method: str = "Newton-CG",
     minimize_max_iterations: int | None = None,
+    minimize_tol: float | None = None,
     logging_function: Callable[[str], None] = lambda _: None,
 ) -> tuple[jax.Array, float]:
     """Minimize a differentiable objective function with random restarts.
@@ -111,6 +112,7 @@ def minimize_with_restarts(
             be passed to `method` argument of `scipy.optimize.minimize`.
         minimize_max_iterations: Maximum number of iterations in inner local
             minimization.
+        minimize_tol: Tolerance parameter for inner local minimization.
         logging_function: Function to use to optionally log status messages during
             minimization. Defaults to a no-op function which discards messages.
 
@@ -131,6 +133,7 @@ def minimize_with_restarts(
             jac=jax.jit(jax.grad(objective_function)),
             hessp=jax.jit(hessian_vector_product(objective_function)),
             method=minimize_method,
+            tol=minimize_tol,
             options={"maxiter": minimize_max_iterations},
         )
         minimize_calls += 1
@@ -167,6 +170,7 @@ def basin_hopping(
     num_iterations: int = 5,
     minimize_method: str = "Newton-CG",
     minimize_max_iterations: int | None = None,
+    minimize_tol: float | None = None,
 ) -> tuple[jax.Array, float]:
     """Minimize a differentiable objective function with SciPy basin-hopping algorithm.
 
@@ -191,6 +195,7 @@ def basin_hopping(
             be passed to `method` argument of `scipy.optimize.minimize`.
         minimize_max_iterations: Maximum number of iterations in inner local
             minimization.
+        minimize_tol: Tolerance parameter for inner local minimization.
 
     Returns:
         Tuple with first entry the state corresponding to the best minima candidate
@@ -204,6 +209,7 @@ def basin_hopping(
             "method": minimize_method,
             "jac": jax.jit(jax.grad(objective_function)),
             "hessp": jax.jit(hessian_vector_product(objective_function)),
+            "tol": minimize_tol,
             "options": {"maxiter": minimize_max_iterations},
         },
         seed=rng,
