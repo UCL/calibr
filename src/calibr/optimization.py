@@ -140,6 +140,8 @@ def minimize_with_restarts(
             # entry in minima_found is always best solution so far (with counter used
             # to break ties between solutions with equal values for objective)
             heappush(minima_found, (results.fun, len(minima_found), results.x))
+        else:
+            logging_function(f"Minimization unsuccessful - {results.message}")
     if len(minima_found) < number_minima_to_find:
         msg = (
             f"Did not find required {number_minima_to_find} minima in "
