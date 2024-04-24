@@ -49,8 +49,7 @@ automatic differentiation.
 The package is still in the early stages of development, with only a subset of the
 algorithmic variants proposed by Järvenpää, Gutmann, Vehtari and Marttinen (2021)
 currently implemented. In particular there is no support yet for models with noisy
-likelihood evaluations or greedy strategies for optimizing the acquisition functions.
-Expect lots of rough edges!
+likelihood evaluations. Expect lots of rough edges!
 
 This project is developed in collaboration with the [Centre for Advanced Research Computing](https://ucl.ac.uk/arc), University College London.
 
