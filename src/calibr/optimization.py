@@ -52,7 +52,7 @@ class GlobalMinimizer(Protocol):
         """
 
 
-def _hessian_vector_product(
+def hessian_vector_product(
     scalar_function: ObjectiveFunction,
 ) -> Callable[[ArrayLike, ArrayLike], jax.Array]:
     """
@@ -129,7 +129,7 @@ def minimize_with_restarts(
             jax.jit(objective_function),
             x0=sample_initial_state(rng),
             jac=jax.jit(jax.grad(objective_function)),
-            hessp=jax.jit(_hessian_vector_product(objective_function)),
+            hessp=jax.jit(hessian_vector_product(objective_function)),
             method=minimize_method,
             options={"maxiter": minimize_max_iterations},
         )
@@ -203,7 +203,7 @@ def basin_hopping(
         minimizer_kwargs={
             "method": minimize_method,
             "jac": jax.jit(jax.grad(objective_function)),
-            "hessp": jax.jit(_hessian_vector_product(objective_function)),
+            "hessp": jax.jit(hessian_vector_product(objective_function)),
             "options": {"maxiter": minimize_max_iterations},
         },
         seed=rng,
