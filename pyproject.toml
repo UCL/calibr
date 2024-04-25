@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "emul@git+https://github.com/UCL/emul",
     "jax",
+    "jaxlib",
     "numpy",
     "scipy",
 ]
