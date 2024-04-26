@@ -17,7 +17,7 @@ from jax import Array
 from jax.typing import ArrayLike
 from numpy.random import Generator
 
-from .optimization import GlobalMinimizer, minimize_with_restarts
+from .optimization import GlobalMinimizer, GlobalMinimizerKwarg, minimize_with_restarts
 
 try:
     import mici
@@ -76,11 +76,11 @@ def get_gaussian_process_factory(
         mean_function: Mean function for Gaussian process.
         covariance_function: Covariance function for Gaussian process.
         neg_log_prior_density: Negative logarithm of density of prior distribution on
-           vector of unconstrained parameters for Gaussian process model.
+            vector of unconstrained parameters for Gaussian process model.
         transform_parameters: Function which maps flat unconstrained parameter vector to
-           a dictionary of (potential constrained) parameters, keyed by parameter name.
+            a dictionary of (potential constrained) parameters, keyed by parameter name.
         sample_unconstrained_parameters: Function generating random values for
-           unconstrained vector of Gaussian process parameters.
+            unconstrained vector of Gaussian process parameters.
 
     Returns:
         Gaussian process factory function.
@@ -116,7 +116,7 @@ def fit_gaussian_process_parameters_map(
     gaussian_process: GaussianProcessModel,
     *,
     minimize_function: GlobalMinimizer = minimize_with_restarts,
-    **minimize_function_kwargs,
+    **minimize_function_kwargs: GlobalMinimizerKwarg,
 ) -> ParametersDict:
     """Fit parameters of Gaussian process model by maximimizing posterior density.
 

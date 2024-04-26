@@ -40,11 +40,22 @@ optional-dependencies = {dev = [
     "ruff",
     "tox>=4",
     "twine",
+], docs = [
+    "black",
+    "mkdocs",
+    "mkdocs-include-markdown-plugin",
+    "mkdocs-material",
+    "mkdocstrings",
+    "mkdocstrings-python",
+], test = [
+    "pytest",
+    "pytest-cov",
 ]}
 readme = "README.md"
 requires-python = ">=3.10"
 license.file = "LICENSE.md"
-urls.homepage = "https://github.com/matt-graham/calibr"
+urls.documentation = "https://github-pages.ucl.ac.uk/calibr"
+urls.homepage = "https://github.com/UCL/calibr"
 
 [tool.coverage]
 report = {skip_covered = true, sort = "cover"}
@@ -119,9 +130,14 @@ legacy_tox_ini = """
     [testenv]
     commands =
         pytest --cov --cov-report=xml
-    deps =
-        pytest
-        pytest-cov
+    extras =
+        test
+
+    [testenv:docs]
+    commands =
+        mkdocs build --strict
+    extras =
+        docs
 
     [tox]
     env_list =

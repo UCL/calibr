@@ -1,0 +1,67 @@
+site_name: calibr
+site_description: "Documentation website for calibr"
+site_author: "Matt Graham"
+copyright: "Copyright © 2024 University College London"
+repo_url: "https://github.com/UCL/calibr/"
+repo_name: "UCL/calibr"
+edit_uri: edit/main/docs/
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+
+theme:
+  name: "material"
+  features:
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Overview: index.md
+  - API reference: api.md
+  - License: LICENSE.md
+
+markdown_extensions:
+  - pymdownx.tasklist
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          docstring_style: google
+          import:
+            - "https://docs.python.org/3/objects.inv"
+            - "https://numpy.org/doc/stable/objects.inv"
+            - "https://jax.readthedocs.io/en/latest/objects.inv"
+          paths: [src]
+          options:
+            show_submodules: true
+            separate_signature: true
+            line_length: 88
+  - include-markdown:
+      opening_tag: "{!"
+      closing_tag: "!}"
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: "https://github.com/UCL"
