@@ -41,6 +41,7 @@ optional-dependencies = {dev = [
     "tox>=4",
     "twine",
 ], docs = [
+    "black",
     "mkdocs",
     "mkdocs-include-markdown-plugin",
     "mkdocs-material",

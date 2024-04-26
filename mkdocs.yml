@@ -55,6 +55,8 @@ plugins:
           paths: [src]
           options:
             show_submodules: true
+            separate_signature: true
+            line_length: 88
   - include-markdown:
       opening_tag: "{!"
       closing_tag: "!}"
