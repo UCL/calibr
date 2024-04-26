@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from heapq import heappush
-from typing import Protocol, TypeAlias
+from typing import Any, Protocol, TypeAlias
 
 import jax
 from jax.typing import ArrayLike
@@ -22,6 +22,8 @@ ObjectiveFunction: TypeAlias = Callable[[ArrayLike], float]
 #: Type alias for function sampling initial optimization state given random generator
 InitialStateSampler: TypeAlias = Callable[[Generator], ndarray]
 
+GlobalMinimizerKwarg: TypeAlias = Any
+
 
 class GlobalMinimizer(Protocol):
     """Function which attempts to find global minimum of a scalar objective function."""
@@ -31,6 +33,7 @@ class GlobalMinimizer(Protocol):
         objective_function: ObjectiveFunction,
         sample_initial_state: InitialStateSampler,
         rng: Generator,
+        **kwargs: GlobalMinimizerKwarg,
     ) -> tuple[jax.Array, float]:
         """
         Minimize a differentiable objective function.
@@ -45,6 +48,7 @@ class GlobalMinimizer(Protocol):
                 random number generator returns a random initial state for optimization
                 of appropriate dimension.
             rng: Seeded NumPy random number generator.
+            **kwargs: Any keyword arguments to global minimizer function.
 
         Returns:
             Tuple with first entry the state corresponding to the minima point and the
@@ -71,6 +75,14 @@ def hessian_vector_product(
     return hvp
 
 
+def _check_unknown_kwargs(unknown_kwargs: dict[str, GlobalMinimizerKwarg]) -> None:
+    if unknown_kwargs:
+        msg = ". ".join(
+            f"Unknown keyword argument {k}={v}" for k, v in unknown_kwargs.items()
+        )
+        raise ValueError(msg)
+
+
 def minimize_with_restarts(
     objective_function: ObjectiveFunction,
     sample_initial_state: InitialStateSampler,
@@ -82,6 +94,7 @@ def minimize_with_restarts(
     minimize_max_iterations: int | None = None,
     minimize_tol: float | None = None,
     logging_function: Callable[[str], None] = lambda _: None,
+    **unknown_kwargs: GlobalMinimizerKwarg,
 ) -> tuple[jax.Array, float]:
     """Minimize a differentiable objective function with random restarts.
 
@@ -102,6 +115,8 @@ def minimize_with_restarts(
             random number generator returns a random initial state for optimization of
             appropriate dimension.
         rng: Seeded NumPy random number generator.
+
+    Keyword Args:
         number_minima_to_find: Number of candidate minima of objective function to try
             to find.
         maximum_minimize_calls: Maximum number of times to try calling
@@ -120,6 +135,7 @@ def minimize_with_restarts(
         Tuple with first entry the state corresponding to the best minima candidate
         found and the second entry the corresponding objective function value.
     """
+    _check_unknown_kwargs(unknown_kwargs)
     minima_found: list[tuple[jax.Array, int, jax.Array]] = []
     minimize_calls = 0
     while (
@@ -171,6 +187,7 @@ def basin_hopping(
     minimize_method: str = "Newton-CG",
     minimize_max_iterations: int | None = None,
     minimize_tol: float | None = None,
+    **unknown_kwargs: GlobalMinimizerKwarg,
 ) -> tuple[jax.Array, float]:
     """Minimize a differentiable objective function with SciPy basin-hopping algorithm.
 
@@ -201,6 +218,7 @@ def basin_hopping(
         Tuple with first entry the state corresponding to the best minima candidate
         found and the second entry the corresponding objective function value.
     """
+    _check_unknown_kwargs(unknown_kwargs)
     results = _basin_hopping(
         jax.jit(objective_function),
         x0=sample_initial_state(rng),

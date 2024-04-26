@@ -22,7 +22,7 @@ from .emulation import (
     GaussianProcessParameterFitter,
     fit_gaussian_process_parameters_map,
 )
-from .optimization import GlobalMinimizer, minimize_with_restarts
+from .optimization import GlobalMinimizer, GlobalMinimizerKwarg, minimize_with_restarts
 
 #: Type alias for function generating random initial values for inputs.
 InitialInputSampler: TypeAlias = Callable[[Generator, int], Array]
@@ -40,7 +40,7 @@ def get_next_inputs_batch_by_joint_optimization(
     batch_size: int,
     *,
     minimize_function: GlobalMinimizer = minimize_with_restarts,
-    **minimize_function_kwargs,
+    **minimize_function_kwargs: GlobalMinimizerKwarg,
 ) -> tuple[Array, float]:
     """
     Get next batch of inputs to evaluate by jointly optimizing acquisition function.
@@ -89,7 +89,7 @@ def get_next_inputs_batch_by_greedy_optimization(
     batch_size: int,
     *,
     minimize_function: GlobalMinimizer = minimize_with_restarts,
-    **minimize_function_kwargs,
+    **minimize_function_kwargs: GlobalMinimizerKwarg,
 ) -> tuple[Array, float]:
     """
     Get next batch of inputs to evaluate by greedily optimizing acquisition function.
